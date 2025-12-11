@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test and Debug scripts
+test_*.py
+debug_*.py
+find_tickers.py
+
+# OS
+.DS_Store
