@@ -5,8 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
-
-from pykrx import stock
+import FinanceDataReader as fdr
 
 
 # ==========================
@@ -33,11 +32,11 @@ def load_theme_etfs() -> Dict[str, Dict[str, Optional[str]]]:
 
 THEME_ETFS = load_theme_etfs()
 
-# 벤치마크 (KOSPI / KOSDAQ 등) - pykrx 기준 인덱스 코드
-# KOSPI: 1001, KOSDAQ: 2001
+# 벤치마크 (KOSPI / KOSDAQ 등) - Yahoo Finance 기준 심볼
+# KOSPI: ^KS11, KOSDAQ: ^KQ11
 BENCHMARKS = {
-    "KOSPI (KS11)": "1001",
-    "KOSDAQ (KQ11)": "2001",
+    "KOSPI (KS11)": "^KS11",
+    "KOSDAQ (KQ11)": "^KQ11",
 }
 
 
@@ -49,55 +48,22 @@ BENCHMARKS = {
 @st.cache_data(show_spinner=False)
 def load_price(code: str, start: dt.date, end: dt.date) -> pd.DataFrame:
     """
-    pykrx로 가격 데이터 로드.
+    FinanceDataReader로 가격 데이터 로드.
     반환: DateIndex, ['Close', 'Open', 'High', 'Low', 'Volume'] 등.
-    컬럼명을 영문으로 변경하여 기존 로직과 호환성 유지.
     """
-    start_str = start.strftime("%Y%m%d")
-    end_str = end.strftime("%Y%m%d")
+    start_str = start.strftime("%Y-%m-%d")
+    end_str = end.strftime("%Y-%m-%d")
 
-    # 1) ETF 시도
-    # pykrx의 get_etf_ohlcv_by_date는 ETF가 아니면 빈 DataFrame을 반환하거나 에러가 날 수 있음.
-    # 하지만 0098F0 같은 ETF 코드는 여기서 잡혀야 함.
     try:
-        df = stock.get_etf_ohlcv_by_date(start_str, end_str, code)
+        # fdr.DataReader는 종목코드, 시작일, 종료일을 받음
+        df = fdr.DataReader(code, start_str, end_str)
     except Exception:
-        df = pd.DataFrame()
-
-    # 2) 데이터가 비었으면 일반 종목(Market) 시도
-    # (ETF여도 get_market_ohlcv로 조회 가능한 경우도 있음, 혹은 일반 주식일 수도 있음)
-    if df.empty:
-        try:
-            df = stock.get_market_ohlcv(start_str, end_str, code)
-        except Exception:
-            pass
-
-    # 3) 그래도 비었으면 지수(Index) 시도 (벤치마크용)
-    if df.empty:
-        try:
-            df = stock.get_index_ohlcv_by_date(start_str, end_str, code)
-        except Exception:
-            pass
+        return pd.DataFrame()
 
     if df.empty:
         return pd.DataFrame()
 
-    # 컬럼 이름 변경 (한글 -> 영문)
-    # pykrx 반환 칼럼: ['시가', '고가', '저가', '종가', '거래량', ...] (지수는 거래대금/상장시가총액 등 다름)
-    # 필요한 건 'Close'(종가)가 핵심.
-    # 주식/ETF: 시가, 고가, 저가, 종가, 거래량, 거래대금, 등락률
-    # 지수: 시가, 고가, 저가, 종가, 거래량, 거래대금, 상장시가총액
-
-    rename_map = {
-        "시가": "Open",
-        "고가": "High",
-        "저가": "Low",
-        "종가": "Close",
-        "거래량": "Volume",
-    }
-    df = df.rename(columns=rename_map)
-
-    # 인덱스를 Date로 보장 (pykrx는 이미 DatetimeIndex)
+    # 인덱스를 Date로 보장 (fdr은 이미 DatetimeIndex)
     df = df.sort_index()
     return df
 
@@ -148,6 +114,14 @@ def compute_relative_strength(
 # ==========================
 
 
+def get_prev_biz_day(d: dt.date) -> dt.date:
+    """직전 영업일(주말 제외) 계산 (공휴일은 완벽 처리 불가, 단순 주말 제외)"""
+    d -= dt.timedelta(days=1)
+    while d.weekday() >= 5:  # 5:Sat, 6:Sun
+        d -= dt.timedelta(days=1)
+    return d
+
+
 def main():
     st.set_page_config(
         page_title="산업/테마 ETF 동향 대시보드",
@@ -168,16 +142,46 @@ def main():
 
     period_option = st.sidebar.selectbox(
         "기간 선택",
-        ["3년", "5년", "1년", "YTD", "직접 선택"],
-        index=0,
+        [
+            "당일",
+            "5일",
+            "WTD",
+            "1개월",
+            "3개월",
+            "6개월",
+            "1년",
+            "3년",
+            "5년",
+            "YTD",
+            "직접 선택",
+        ],
+        index=6,
     )
 
-    if period_option == "3년":
+    # 기간별 시작일 설정
+    if period_option == "당일":
+        # 전일 종가 대비 당일 변화를 보기 위해, Start = 직전 영업일
+        start_date = get_prev_biz_day(today)
+    elif period_option == "5일":
+        start_date = today - dt.timedelta(days=5)
+    elif period_option == "WTD":
+        # 이번 주 월요일부터
+        start_date = today - dt.timedelta(days=today.weekday())
+        # 만약 오늘이 월요일이면, 변동률 계산을 위해 지난 주 금요일(직전 영업일)로 설정
+        if today.weekday() == 0:
+            start_date = get_prev_biz_day(today)
+    elif period_option == "1개월":
+        start_date = today - dt.timedelta(days=30)
+    elif period_option == "3개월":
+        start_date = today - dt.timedelta(days=90)
+    elif period_option == "6개월":
+        start_date = today - dt.timedelta(days=180)
+    elif period_option == "1년":
+        start_date = today - dt.timedelta(days=365)
+    elif period_option == "3년":
         start_date = today - dt.timedelta(days=365 * 3)
     elif period_option == "5년":
         start_date = today - dt.timedelta(days=365 * 5)
-    elif period_option == "1년":
-        start_date = today - dt.timedelta(days=365)
     elif period_option == "YTD":
         start_date = dt.date(today.year, 1, 1)
     else:

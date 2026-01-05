@@ -1,4 +1,20 @@
 {
+    "반도체": {
+        "name": "KODEX 반도체",
+        "code": "091160"
+    },
+    "전력설비": {
+        "name": "KODEX AI전력핵심설비",
+        "code": "487240"
+    },
+    "로봇": {
+        "name": "RISE AI&로봇",
+        "code": "469070"
+    },
+    "우주항공": {
+        "name": "PLUS 우주항공&UAM",
+        "code": "421320"
+    },
     "2차전지": {
         "name": "KODEX 2차전지산업",
         "code": "305720"
@@ -7,8 +23,12 @@
         "name": "KODEX K원자력SMR",
         "code": "0098F0"
     },
+    "자동차":{
+        "name": "KODEX 자동차",
+        "code": "091180"
+    },
     "방산": {
-        "name": "SOL K방산",
+        "name": "PLUS K방산",
         "code": "449450"
     },
     "화장품 / K-뷰티": {
@@ -19,21 +39,29 @@
         "name": "TIGER 미디어컨텐츠",
         "code": "228810"
     },
-    "금융 - 은행/지주": {
-        "name": "TIGER 은행고배당플러스TOP10",
-        "code": "466940"
+    "K-POP&미디어":{
+        "name": "HANARO Fn K-POP&미디어",
+        "code": "395290"
+    },
+    "금융 - 지주": {
+        "name": "TIGER 지주회사",
+        "code": "307520"
+    },
+    "금윤 - 은행": {
+        "name": "KODEX 은행",
+        "code": "091170"
     },
     "금융 - 증권": {
-        "name": "TIGER 증권",
-        "code": "157500"
+        "name": "KODEX 증권",
+        "code": "102970"
     },
     "금융 - 보험": {
         "name": "KODEX 보험",
         "code": "140700"
     },
     "조선": {
-        "name": "SOL 조선TOP3플러스",
-        "code": "466920"
+        "name": "TIGER 조선TOP10",
+        "code": "494670"
     },
     "운송(해운·항공·물류)": {
         "name": "KODEX 운송",
