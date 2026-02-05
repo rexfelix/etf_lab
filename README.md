@@ -24,8 +24,10 @@
     pip install streamlit pandas pykrx plotly
     ```
 
+
 ## 실행 방법
 
+### 1. Python 직접 실행
 아래 명령어로 Streamlit 앱을 실행합니다.
 
 ```bash
@@ -33,6 +35,24 @@ streamlit run etf_theme_rs_trend.py
 ```
 
 브라우저가 자동으로 열리며 대시보드를 확인할 수 있습니다.
+
+### 2. Docker Compose 실행 (권장)
+Docker를 사용하여 더욱 안정적으로 서비스를 실행할 수 있습니다. 특히 **자동 재실행(Auto-Restart)** 기능이 포함되어 있어, 컨테이너가 중단되거나 시스템이 재부팅되어도 자동으로 복구됩니다.
+
+```bash
+# 컨테이너 실행 (백그라운드)
+docker-compose up -d
+
+# 로그 확인
+docker-compose logs -f
+
+# 컨테이너 중지
+docker-compose down
+```
+주요 특징:
+- `restart: unless-stopped` 정책이 적용되어 수동으로 끄지 않는 한 항상 살아납니다.
+- 개발 중인 코드가 컨테이너와 실시간으로 동기화됩니다.
+
 
 ## 테마/종목 추가 및 수정
 
