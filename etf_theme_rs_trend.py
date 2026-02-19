@@ -159,11 +159,15 @@ def main():
     )
 
     # 기간별 시작일 설정
+    # candle_count: 캔들(거래일) 수 기반 기간. None이면 달력 기반.
+    candle_count = None
+
     if period_option == "당일":
         # 전일 종가 대비 당일 변화를 보기 위해, Start = 직전 영업일
         start_date = get_prev_biz_day(today)
     elif period_option == "5일":
-        start_date = today - dt.timedelta(days=5)
+        candle_count = 5
+        start_date = today - dt.timedelta(days=15)
     elif period_option == "WTD":
         # 이번 주 월요일부터
         start_date = today - dt.timedelta(days=today.weekday())
@@ -171,11 +175,14 @@ def main():
         if today.weekday() == 0:
             start_date = get_prev_biz_day(today)
     elif period_option == "1개월":
-        start_date = today - dt.timedelta(days=30)
+        candle_count = 20
+        start_date = today - dt.timedelta(days=45)
     elif period_option == "3개월":
-        start_date = today - dt.timedelta(days=90)
+        candle_count = 60
+        start_date = today - dt.timedelta(days=130)
     elif period_option == "6개월":
-        start_date = today - dt.timedelta(days=180)
+        candle_count = 120
+        start_date = today - dt.timedelta(days=250)
     elif period_option == "1년":
         start_date = today - dt.timedelta(days=365)
     elif period_option == "3년":
@@ -252,6 +259,10 @@ def main():
         st.error(f"벤치마크({bench_name}) 데이터 로딩 실패: {e}")
         bench_df = pd.DataFrame()
 
+    # 캔들 수 기반 기간이면 마지막 N개 거래일로 자르기
+    if candle_count is not None and not bench_df.empty:
+        bench_df = bench_df.iloc[-candle_count:]
+
     # -------- 메인 차트용 데이터 준비 --------
     norm_df = pd.DataFrame()
 
@@ -270,6 +281,8 @@ def main():
             df = load_price(code, start_date, end_date)
             if df.empty:
                 continue
+            if candle_count is not None:
+                df = df.iloc[-candle_count:]
             theme_price_dfs[theme] = df
             norm_df[info["name"]] = normalize_price(df)
         except Exception as e:

@@ -9,7 +9,7 @@
 *   **기간 설정**: 1년, 3년, 5년, YTD 등 다양한 기간에 대한 성과 분석이 가능합니다.
 *   **유연한 종목 관리**: `theme_etf_data.json` 파일을 통해 비교할 ETF 리스트를 손쉽게 추가하거나 수정할 수 있습니다.
 *   **편의 기능**: 사이드바의 '전체 선택' / '선택 해제' 버튼을 통해 다수의 테마를 원클릭으로 관리할 수 있습니다.
-*   **데이터 신뢰성**: `pykrx` 라이브러리를 사용하여 KRX(한국거래소) 공식 데이터를 기반으로 안정적인 정보를 제공합니다.
+*   **데이터 신뢰성**: `FinanceDataReader` 라이브러리를 사용하여 KRX·Yahoo Finance 등 다양한 소스에서 안정적인 데이터를 제공합니다.
 
 ## 설치 방법
 
@@ -21,7 +21,7 @@
 
 2.  필요한 Python 패키지를 설치합니다.
     ```bash
-    pip install streamlit pandas pykrx plotly
+    pip install streamlit pandas finance-datareader
     ```
 
 
@@ -69,8 +69,8 @@ docker-compose down
 }
 ```
 
-*   `code`는 반드시 6자리 숫자여야 합니다 (예: `005930`, `305720`).
-*   `pykrx`가 지원하는 모든 종목(ETF 포함)을 추가할 수 있습니다.
+*   `code`는 KRX 종목코드(6자리)를 사용합니다 (예: `005930`, `305720`).
+*   `FinanceDataReader`가 지원하는 모든 종목(ETF 포함)을 추가할 수 있습니다.
 
 ## 파일 구조
 
@@ -80,4 +80,4 @@ docker-compose down
 
 ## 데이터 출처
 
-*   이 프로젝트는 [pykrx](https://github.com/sharebook-kr/pykrx)를 통해 Naver Finance 및 KRX 데이터를 사용합니다.
+*   이 프로젝트는 [FinanceDataReader](https://github.com/financedata-org/FinanceDataReader)를 통해 KRX·Yahoo Finance 등의 데이터를 사용합니다.
