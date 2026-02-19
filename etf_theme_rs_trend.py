@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 import FinanceDataReader as fdr
+from pykrx import stock as pykrx_stock
 
 
 # ==========================
@@ -66,6 +67,20 @@ def load_price(code: str, start: dt.date, end: dt.date) -> pd.DataFrame:
     # 인덱스를 Date로 보장 (fdr은 이미 DatetimeIndex)
     df = df.sort_index()
     return df
+
+
+@st.cache_data(show_spinner="구성종목 조회 중...", ttl=3600)
+def load_etf_constituents(code: str) -> pd.DataFrame:
+    """pykrx로 ETF 구성종목(PDF) 조회. 휴장일이면 직전 영업일 재시도."""
+    for days_back in range(0, 7):
+        target = (dt.date.today() - dt.timedelta(days=days_back)).strftime("%Y%m%d")
+        try:
+            df = pykrx_stock.get_etf_portfolio_deposit_file(code, target)
+            if not df.empty:
+                return df
+        except Exception:
+            continue
+    return pd.DataFrame()
 
 
 def normalize_price(df: pd.DataFrame, col: str = "Close") -> pd.Series:
@@ -350,12 +365,18 @@ def main():
         na_position="last",
     ).reset_index(drop=True)
 
-    st.dataframe(result_df_sorted, use_container_width=True)
+    event = st.dataframe(
+        result_df_sorted,
+        use_container_width=True,
+        on_select="rerun",
+        selection_mode="single-row",
+    )
 
     st.caption(
         "- **기간 수익률**: 시작일~종료일까지의 단순 수익률\n"
         "- **연율화 변동성**: 일간 수익률의 표준편차 × √252\n"
-        "- **RS(%)**: (테마 기간 수익률 − 벤치마크 기간 수익률). 0보다 크면 벤치마크보다 강함."
+        "- **RS(%)**: (테마 기간 수익률 − 벤치마크 기간 수익률). 0보다 크면 벤치마크보다 강함.\n"
+        "- 행을 클릭하면 해당 ETF의 구성종목을 확인할 수 있습니다."
     )
 
     # ==========================
@@ -383,6 +404,54 @@ def main():
         )
     else:
         st.info("상관관계를 계산할 만한 ETF 수가 충분하지 않습니다.")
+
+    # ==========================
+    # 7) ETF 구성종목 (행 선택 시 표시)
+    # ==========================
+
+    if event.selection.rows:
+        selected_idx = event.selection.rows[0]
+        selected_row = result_df_sorted.iloc[selected_idx]
+        selected_theme = selected_row["테마"]
+
+        # 벤치마크가 아닌 실제 테마 ETF인 경우만 구성종목 표시
+        if selected_theme in THEME_ETFS:
+            etf_info = THEME_ETFS[selected_theme]
+            etf_code = etf_info["code"]
+            etf_name = etf_info["name"]
+
+            st.subheader(f"4. ETF 구성종목 — {selected_theme} ({etf_name})")
+
+            constituents = load_etf_constituents(etf_code)
+            if not constituents.empty:
+                # 구성종목별 동일 기간 등락률 계산
+                returns = []
+                for ticker in constituents.index:
+                    try:
+                        price_df = load_price(ticker, start_date, end_date)
+                        if not price_df.empty:
+                            if candle_count is not None:
+                                price_df = price_df.iloc[-candle_count:]
+                            ret = compute_return(price_df)
+                            returns.append(round(ret, 2) if pd.notna(ret) else None)
+                        else:
+                            returns.append(None)
+                    except Exception:
+                        returns.append(None)
+                constituents["등락률(%)"] = returns
+
+                # 비중 기준 내림차순 정렬
+                constituents = constituents.sort_values("비중", ascending=False)
+                st.dataframe(constituents, use_container_width=True)
+                st.caption(
+                    f"※ {etf_name}({etf_code})의 구성종목 "
+                    f"(총 {len(constituents)}개). 비중(%) 기준 내림차순. "
+                    f"등락률은 동일 분석 기간 기준."
+                )
+            else:
+                st.warning(f"{etf_name}({etf_code})의 구성종목 데이터를 가져올 수 없습니다.")
+        else:
+            st.info("벤치마크(인덱스)는 구성종목 조회가 지원되지 않습니다. ETF 행을 선택해 주세요.")
 
 
 if __name__ == "__main__":
